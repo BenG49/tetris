@@ -1,11 +1,12 @@
 /*
-https://tetris.fandom.com/wiki/TGM_legend
-https://tetris.fandom.com/wiki/Drop
-https://strategywiki.org/wiki/Tetris/Controls
-https://www.sfml-dev.org/tutorials/2.5/window-inputs.php
+    https://tetris.fandom.com/wiki/TGM_legend
+    https://tetris.fandom.com/wiki/Drop
+    https://strategywiki.org/wiki/Tetris/Controls
+    https://www.sfml-dev.org/tutorials/2.5/window-inputs.php
 */
 
 #include <SFML/Graphics.hpp>
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <random>
@@ -18,8 +19,7 @@ https://www.sfml-dev.org/tutorials/2.5/window-inputs.php
 using namespace sf;
 using namespace std;
 
-const int keyRepMillis = 100;
-const Vector2f spawnVec(3, -1);
+const Vector2f spawnVec(3, 0);
 const Vector2f boardSize(TILE_SIZE * 10, TILE_SIZE * 20);
 const Vector2f boardPos(
     (WIN_X - boardSize.x) / 2,
@@ -61,16 +61,14 @@ struct game
     int rotation;
     Vector2f tetPos;
 
-    array<array<int, 10>, 20> tiles;
+    vector<vector<int>> tiles;  // 20x10b
 
     int score;
     int level;
 };
 
 int parseRot(int rot)
-{
-    return (rot < 0) ? (4 + rot % 4) : (rot % 4);
-}
+{ return (rot < 0) ? (4 + rot % 4) : (rot % 4); }
 
 bool collisionCheck(int rotOffset, int moveOffset, game *g)
 {
@@ -80,9 +78,9 @@ bool collisionCheck(int rotOffset, int moveOffset, game *g)
         if (current >> i & 1 == 1)
         {
             int x = i % 4 + g->tetPos.x + moveOffset;
-            int y = floor(i / 4) + g->tetPos.y + ((!rotOffset && !moveOffset)?1:0);
+            int y = floor(i / 4) + g->tetPos.y + ((!rotOffset && !moveOffset) ? 1 : 0);
 
-            if (y > 20 || x < 0 || x >= 10 || g->tiles[y][x] != N)
+            if (y >= 20 || x < 0 || x >= 10 || g->tiles[y][x] != N)
                 return false;
         }
     }
@@ -99,19 +97,42 @@ void placeTet(game *g)
 
     g->currentTet = rand() % N;
     g->tetPos = spawnVec;
+
+    bool fullRow = true;
+    for (int y = 0; y < 20; ++y)
+    {
+        fullRow = true;
+        for (int x = 0; x < 10; ++x)
+        {
+            if (g->tiles[y][x] == N)
+            {
+                fullRow = false;
+                break;
+            }
+        }
+
+        if (fullRow)
+        {
+            g->tiles.erase(g->tiles.begin() + y);
+            vector<int> temp;
+            for (int x = 0; x < 10; ++x)
+                temp.push_back(N);
+            g->tiles.insert(g->tiles.begin(), temp);
+        }
+    }
 }
 
 void hardDrop(game *g)
 {
     while (collisionCheck(0, 0, g))
         g->tetPos = Vector2f(g->tetPos.x, g->tetPos.y + 1);
-    
+
     placeTet(g);
 }
 
 void updateGame(game *g, int *timer, bool softDrop)
 {
-    if (*timer >= ((softDrop)?softFrames[g->level]:frames[g->level]))
+    if (*timer >= ((softDrop) ? softFrames[g->level] : frames[g->level]))
     {
         if (collisionCheck(0, 0, g))
             g->tetPos = Vector2f(g->tetPos.x, g->tetPos.y + 1);
@@ -185,16 +206,19 @@ int main()
 
     RenderWindow window(VideoMode(480, 640), "win", Style::Titlebar);
     Vector2u size = window.getSize();
-    Clock keyClock;
 
     tile.setOutlineThickness(0);
     window.setFramerateLimit(60);
 
     // init array
-    array<array<int, 10>, 20> tiles;
-    for (int y = 0; y < tiles.size(); ++y)
-        for (int x = 0; x < tiles[y].size(); ++x)
-            tiles[y][x] = N;
+    vector<vector<int>> tiles;
+    for (int y = 0; y < 20; ++y)
+    {
+        vector<int> temp;
+        for (int x = 0; x < 10; ++x)
+            temp.push_back(N);
+        tiles.push_back(temp);
+    }
 
     // game g = { I, L, 0, Vector2f(3, 10), tiles, 0, 0 };
     game g = {I, J, 0, Vector2f(3, 10), tiles, 0, 2};
@@ -213,36 +237,30 @@ int main()
             {
                 int code = event.key.code;
 
+                if (code == Keyboard::Up || code == Keyboard::W || code == Keyboard::X)
+                {   // clockwise
+                    if (collisionCheck(1, 0, &g))
+                        g.rotation = parseRot(g.rotation + 1);
+                } else if (code == Keyboard::Z || event.key.control)
+                {   // counterclockwise
+                    if (collisionCheck(-1, 0, &g))
+                        g.rotation = parseRot(g.rotation - 1);
+                } else if (code == Keyboard::Left || code == Keyboard::A)
+                {   // move left
+                    if (collisionCheck(0, -1, &g))
+                        g.tetPos = Vector2f(g.tetPos.x - 1, g.tetPos.y);
+                } else if (code == Keyboard::Right || code == Keyboard::D)
+                {   // move right
+                    if (collisionCheck(0, 1, &g))
+                        g.tetPos = Vector2f(g.tetPos.x + 1, g.tetPos.y);
+                } else if (code == Keyboard::Space)
+                // hard drop
+                    hardDrop(&g);
+                else if (code == Keyboard::Down || code == Keyboard::S)
+                    softDrop = true;
             }
             else if (event.type == Event::Closed)
                 window.close();
-        }
-
-        if (keyClock.getElapsedTime().asMilliseconds() % keyRepMillis == 0)
-        {
-            if (Keyboard::isKeyPressed(Keyboard::Up) ||
-                Keyboard::isKeyPressed(Keyboard::W) ||
-                Keyboard::isKeyPressed(Keyboard::X))
-            {   // clockwise
-                if (collisionCheck(1, 0, &g))
-                    g.rotation = parseRot(g.rotation + 1);
-            } else if (code == Keyboard::Z || event.key.control)
-            {   // counterclockwise
-                if (collisionCheck(-1, 0, &g))
-                    g.rotation = parseRot(g.rotation - 1);
-            } else if (code == Keyboard::Left || code == Keyboard::A)
-            {   // move left
-                if (collisionCheck(0, -1, &g))
-                    g.tetPos = Vector2f(g.tetPos.x - 1, g.tetPos.y);
-            } else if (code == Keyboard::Right || code == Keyboard::D)
-            {   // move right
-                if (collisionCheck(0, 1, &g))
-                    g.tetPos = Vector2f(g.tetPos.x + 1, g.tetPos.y);
-            } else if (code == Keyboard::Space)
-            // hard drop
-                hardDrop(&g);
-            else if (code == Keyboard::Down || code == Keyboard::S)
-                softDrop = true;
         }
 
         window.clear();
