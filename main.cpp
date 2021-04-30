@@ -28,7 +28,7 @@ void updateGame(game *g, int *timer, bool softDrop)
     }
 }
 
-void drawGame(game *g, RenderWindow *win, int *timer, Font *font, bool softDrop, bool paused)
+void drawGame(game *g, RenderWindow *win, int *timer, bool softDrop, bool paused)
 {
     if (!paused)
         updateGame(g, timer, softDrop);
@@ -59,15 +59,11 @@ void drawGame(game *g, RenderWindow *win, int *timer, Font *font, bool softDrop,
         win->draw(line);
     }
 
+    // draw score
+    drawText(to_string(g->score), 32, boardPos+scorePos, Color::White, win);
+
     if (paused)
-    {
-        Text text;
-        text.setFont(*font);
-        text.setString("PAUSED");
-        text.setCharacterSize(24);
-        text.setPosition(boardPos + fontPos);
-        win->draw(text);
-    }
+        drawText("PAUSED", 32, boardPos+fontPos, Color::White, win);
     else
     {
         // draw tiles
@@ -117,8 +113,13 @@ void input(int code, game *g, bool *paused, bool *softDrop)
                 g->tetPos = Vector2f(g->tetPos.x + 1, g->tetPos.y);
         }
         else if (code == Keyboard::Space)
-            // hard drop
-            hardDrop(g);
+        {
+            // hard drop (drop until collision)
+            while (collisionCheck(0, 0, g))
+                g->tetPos = Vector2f(g->tetPos.x, g->tetPos.y + 1);
+
+            placeTet(g);
+        }
         else if (code == Keyboard::Down || code == Keyboard::S)
             *softDrop = true;
         else if (code == Keyboard::C && !g->usedHeld)
@@ -141,7 +142,7 @@ void input(int code, game *g, bool *paused, bool *softDrop)
         }
     }
 
-    if (code == Keyboard::P)
+    if (code == Keyboard::P || code == Keyboard::Escape)
         *paused = !*paused;
 }
 
@@ -151,13 +152,7 @@ int main()
 
     RenderWindow window(VideoMode(480, 640), "win", Style::Titlebar);
     Vector2u size = window.getSize();
-    Font font;
-
-    if (!font.loadFromFile("/usr/share/fonts/CascadiaCode.ttf"))
-    {
-        printf("Error loading font!");
-        return -1;
-    }
+    Event event;
 
     tile.setOutlineThickness(0);
     window.setFramerateLimit(60);
@@ -182,7 +177,6 @@ int main()
     {
         softDrop = false;
 
-        Event event;
         while (window.pollEvent(event))
         {
             if (event.type == Event::KeyPressed)
@@ -193,7 +187,8 @@ int main()
 
         window.clear();
 
-        drawGame(&g, &window, &timer, &font, softDrop, paused);
+        drawGame(&g, &window, &timer, softDrop, paused);
+        // drawText("1", 64, Vector2f(0, 100), Color::White, &window);
 
         window.display();
         ++timer;

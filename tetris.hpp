@@ -1,12 +1,10 @@
-#include <SFML/Graphics.hpp>
 #include <math.h>
+
+#include "font.hpp"
 
 #define TILE_SIZE 22
 #define WIN_X 480
 #define WIN_Y 640
-
-using namespace sf;
-using namespace std;
 
 const int tetDisplayRot = 1;
 const Color gridColor(255, 255, 255, 80);
@@ -18,13 +16,15 @@ const Vector2f boardPos(
     (WIN_X - boardSize.x) / 2,
     (WIN_Y - boardSize.y) / 2);
 const Vector2f fontPos(
-    TILE_SIZE * 3.1,
-    TILE_SIZE * 8.8);
+    TILE_SIZE * 0.7,
+    TILE_SIZE * 9);
+const Vector2f scorePos(
+    TILE_SIZE * -5,
+    TILE_SIZE * -4);
 
 RectangleShape tile(Vector2f(TILE_SIZE, TILE_SIZE));
 
 enum tetromino { I, O, S, Z, L, J, T, N };
-
 const array<Color, N> COLORS({
     Color(0, 255, 255), // cyan
     Color(255, 255, 0), // yellow
@@ -37,10 +37,10 @@ const array<Color, N> COLORS({
 
 // Stores each tetromino in a 4x4 array of pixels, gap on right and bottom if 3x3
 const array<array<uint16_t, 4>, N> tetrominos({
-    array<uint16_t, 4>({0xf0,   0x4444, 0xf00, 0x2222}),   // I
-    array<uint16_t, 4>({0x660,  0x660,  0x660, 0x660}),    // O
-    array<uint16_t, 4>({0x630,  0x2640, 0x63,  0x4c80}),   // Z
-    array<uint16_t, 4>({0x6c0,  0x4620, 0x6c,  0x8c40}),   // S
+    array<uint16_t, 4>({0xf0, 0x4444, 0xf00, 0x2222}),   // I
+    array<uint16_t, 4>({0x660, 0x660, 0x660, 0x660}),    // O
+    array<uint16_t, 4>({0x630, 0x2640, 0x63, 0x4c80}),   // Z
+    array<uint16_t, 4>({0x6c0, 0x4620, 0x6c, 0x8c40}),   // S
     array<uint16_t, 4>({0x2e00, 0x4460, 0xe80, 0xc440}), // L
     array<uint16_t, 4>({0x8e00, 0x6440, 0xe20, 0x44c0}), // J
     array<uint16_t, 4>({0x4e00, 0x4640, 0xe40, 0x4c40})  // T
@@ -103,6 +103,7 @@ void placeTet(game *g)
             g->tiles[floor(i / 4) + g->tetPos.y][i % 4 + g->tetPos.x] = g->currentTet;
 
     resetTet(g);
+    int rows = 0;
 
     // check for full row
     bool fullRow = true;
@@ -126,17 +127,20 @@ void placeTet(game *g)
             for (int x = 0; x < 10; ++x)
                 temp.push_back(N);
             g->tiles.insert(g->tiles.begin(), temp);
+            ++rows;
         }
     }
-}
 
-void hardDrop(game *g)
-{
-    // drop until collision
-    while (collisionCheck(0, 0, g))
-        g->tetPos = Vector2f(g->tetPos.x, g->tetPos.y + 1);
-
-    placeTet(g);
+    if (rows == 0)
+        return;
+    else if (rows == 1)
+        g->score += 40 * (g->level + 1);
+    else if (rows == 2)
+        g->score += 100 * (g->level + 1);
+    else if (rows == 3)
+        g->score += 300 * (g->level + 1);
+    else if (rows == 4)
+        g->score += 1200 * (g->level + 1);
 }
 
 void drawTet(int xOffset, int yOffset, int tet, int rot, game *g, RenderWindow *win)
