@@ -115,8 +115,9 @@ void placeTet()
 
     int rows = 0;
     // check for full row
-    for (int y = 0; y < boardDim.y; ++y)
+    for (int y = boardDim.y-1; y >= 0; --y)
     {
+        cout << y << endl;
         vector<int> temp;
 
         for (int x = 0; x < boardDim.x; ++x)
