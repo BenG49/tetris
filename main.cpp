@@ -32,9 +32,14 @@ void updateGame()
         pad0(&s, 3);
         drawText("LINES: "+s, fontSize, Vector2f(linesPos.x, pausePos.y + fontSize * (lostFontMul + 4)), Color::White, &win);
 
+        // draw level
+        s = to_string(level);
+        pad0(&s, 2);
+        drawText("LEVEL: "+s, fontSize, Vector2f(levelPos.x, pausePos.y + fontSize * (lostFontMul + 6)), Color::White, &win);
+
         // draw prompt
-        drawText("PRESS ENTER TO", fontSize, Vector2f(pressX, pausePos.y + fontSize * (lostFontMul + 7)), Color::White, &win);
-        drawText("PLAY AGAIN", fontSize, Vector2f(linesPos.x, pausePos.y + fontSize * (lostFontMul + 9)), Color::White, &win);
+        drawText("PRESS ENTER TO", fontSize, Vector2f(pressX, pausePos.y + fontSize * (lostFontMul + 9)), Color::White, &win);
+        drawText("PLAY AGAIN", fontSize, Vector2f(linesPos.x, pausePos.y + fontSize * (lostFontMul + 11)), Color::White, &win);
 
         return;
     }
@@ -88,6 +93,11 @@ void updateGame()
     s = to_string(lines);
     pad0(&s, 3);
     drawText("LINES: "+s, fontSize, linesPos, Color::White, &win);
+
+    // draw level
+    s = to_string(level);
+    pad0(&s, 2);
+    drawText("LEVEL: "+s, fontSize, levelPos, Color::White, &win);
 
     if (paused)
         drawText("PAUSED", fontSize, pausePos, Color::White, &win);

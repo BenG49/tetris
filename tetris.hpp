@@ -6,16 +6,18 @@ constexpr float centerFont(int len, int fontSize, int winWidth)
     return (winWidth - fontSize * len) / 2;
 }
 
-const Vector2f winSize(480, 640);
+const Vector2f winSize(480, 700);
 const Vector2f boardDim(10, 20);
 
 const int displayRot = 1;
 const int tileSize = 22;
 const int fontSize = 32;
 
+const int startLevel = 0;
+
 const Color gridColor(255, 255, 255, 80);
-const Vector2f boardSize = (float)tileSize * boardDim;
-const Vector2f boardPos = (winSize - boardSize) / 2.0f;
+const Vector2f boardSize = boardDim * (float)tileSize;
+const Vector2f boardPos((winSize.x - boardSize.x) / 2, fontSize * 3);
 
 // positions
 const Vector2f pausePos(centerFont(6, fontSize, winSize.x),  // len(PAUSED) = 6
@@ -24,10 +26,12 @@ const Vector2f linesPos(centerFont(10, fontSize, winSize.x), // len(LINES: 000) 
                         fontSize / 2);
 const Vector2f scorePos(centerFont(13, fontSize, winSize.x), // len(SCORE: 000000) = 13
                         winSize.y - fontSize * 2);
+const Vector2f levelPos(centerFont(9, fontSize, winSize.x), // len(LEVEL: 00) = 9
+                        winSize.y - fontSize * 4);
 
 const float lostX = centerFont(8, fontSize, winSize.x);     // x pos for "YOU LOST"
 const float pressX = centerFont(14, fontSize, winSize.x);   // x pos for "PRESS ENTER TO"
-const int lostFontMul = -5; // how many fontSizes to offset from center of screen for top of lost text
+const int lostFontMul = -7; // how many fontSizes to offset from center of screen for top of lost text
 
 const Vector2f nextTetPos(11, boardDim.y - 3);
 const Vector2f heldTetPos(-5, boardDim.y - 3);
@@ -67,8 +71,8 @@ bool usedHeld, softDrop, paused, lost;
 
 Vector2f tetPos = spawnPos;
 
-RenderWindow win(VideoMode(480, 640), "win", Style::Titlebar);
-vector<vector<int>> tiles; // 20x10
+RenderWindow win(VideoMode(winSize.x, winSize.y), "Tetris", Style::Titlebar);
+vector<vector<int>> tiles;
 int nextTet;
 int currentTet;
 
@@ -117,7 +121,6 @@ void placeTet()
     // check for full row
     for (int y = boardDim.y-1; y >= 0; --y)
     {
-        cout << y << endl;
         vector<int> temp;
 
         for (int x = 0; x < boardDim.x; ++x)
@@ -135,6 +138,15 @@ void placeTet()
 
     cnt:;
     }
+
+    // check to increase level
+    if (level == startLevel)
+    {
+        if (lines >= min(startLevel * 10 + 10, max(100, startLevel * 10 - 50)))
+            ++level;
+    }
+    else if (lines >= min(startLevel * 10 + 10, max(100, startLevel * 10 - 50)) + 10 * level)
+        ++level;
 
     if (rows == 0)
         return;
