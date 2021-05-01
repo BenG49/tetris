@@ -5,33 +5,29 @@
     https://www.sfml-dev.org/tutorials/2.5/window-inputs.php
 */
 
-#include <iostream>
-#include <vector>
-#include <random>
-
+#include "libs.hpp"
 #include "tetris.hpp"
 
-using namespace sf;
-using namespace std;
+const bool useGrid = false;
 
-void updateGame(game *g, int *timer, bool softDrop)
+void updateGame(int *timer, bool softDrop)
 {
     // if timer > frame count (depending on if soft dropping)
-    if (*timer >= ((softDrop) ? softFrames[g->level] : frames[g->level]))
+    if (*timer >= ((softDrop) ? softFrames[level] : frames[level]))
     {
-        if (collisionCheck(0, 0, g))
-            g->tetPos = Vector2f(g->tetPos.x, g->tetPos.y + 1);
+        if (collisionCheck(0, 0))
+            tetPos = Vector2f(tetPos.x, tetPos.y + 1);
         else
-            placeTet(g);
+            placeTet();
 
         *timer = 0;
     }
 }
 
-void drawGame(game *g, RenderWindow *win, int *timer, bool softDrop, bool paused)
+void drawGame(RenderWindow *win, int *frameTimer, bool softDrop, bool paused)
 {
     if (!paused)
-        updateGame(g, timer, softDrop);
+        updateGame(frameTimer, softDrop);
 
     // draw board
     RectangleShape board(boardSize);
@@ -43,102 +39,105 @@ void drawGame(game *g, RenderWindow *win, int *timer, bool softDrop, bool paused
     win->draw(board);
 
     // draw grid
-    RectangleShape line(Vector2f(1, TILE_SIZE * 20));
-    line.setFillColor(gridColor);
-
-    for (int x = 1; x < 10; ++x)
+    if (useGrid)
     {
-        line.setPosition(Vector2f(boardPos.x + x * TILE_SIZE, boardPos.y));
-        win->draw(line);
-    }
+        RectangleShape line(Vector2f(1, TILE_SIZE * 20));
+        line.setFillColor(gridColor);
 
-    line.setSize(Vector2f(TILE_SIZE * 10, 1));
-    for (int y = 1; y < 20; ++y)
-    {
-        line.setPosition(Vector2f(boardPos.x, boardPos.y + y * TILE_SIZE));
-        win->draw(line);
+        for (int x = 1; x < 10; ++x)
+        {
+            line.setPosition(Vector2f(boardPos.x + x * TILE_SIZE, boardPos.y));
+            win->draw(line);
+        }
+
+        line.setSize(Vector2f(TILE_SIZE * 10, 1));
+        for (int y = 1; y < 20; ++y)
+        {
+            line.setPosition(Vector2f(boardPos.x, boardPos.y + y * TILE_SIZE));
+            win->draw(line);
+        }
     }
 
     // draw score
-    drawText(to_string(g->score), 32, boardPos+scorePos, Color::White, win);
+    drawText(to_string(score), 32, boardPos+scorePos, Color::White, win);
 
     if (paused)
         drawText("PAUSED", 32, boardPos+fontPos, Color::White, win);
     else
     {
         // draw tiles
-        for (int y = 0; y < g->tiles.size(); ++y)
-            for (int x = 0; x < g->tiles[y].size(); ++x)
-                if (g->tiles[y][x] != N)
+        for (int y = 0; y < tiles.size(); ++y)
+            for (int x = 0; x < tiles[y].size(); ++x)
+                if (tiles[y][x] != N)
                 {
-                    tile.setFillColor(COLORS[g->tiles[y][x]]);
+                    tile.setFillColor(COLORS[tiles[y][x]]);
                     tile.setPosition(boardPos + Vector2f(TILE_SIZE * x, TILE_SIZE * y));
                     win->draw(tile);
                 }
 
         // draw falling tet
-        drawTet(g->tetPos.x, g->tetPos.y, g->currentTet, g->rotation, g, win);
+        drawTet(tetPos.x, tetPos.y, currentTet, rotation, win);
 
         // draw next
-        drawTet(nextTetPos.x, nextTetPos.y, g->nextTet, tetDisplayRot, g, win);
+        drawTet(nextTetPos.x, nextTetPos.y, nextTet, tetDisplayRot, win);
 
         // draw held
-        if (g->heldTet != N)
-            drawTet(heldTetPos.x, heldTetPos.y, g->heldTet, tetDisplayRot, g, win);
+        if (heldTet != N)
+            drawTet(heldTetPos.x, heldTetPos.y, heldTet, tetDisplayRot, win);
     }
 }
 
-void input(int code, game *g, bool *paused, bool *softDrop)
+void input(int code, bool *paused, bool *softDrop)
 {
     if (!*paused)
     {
         if (code == Keyboard::Up || code == Keyboard::W || code == Keyboard::X)
         { // clockwise
-            if (collisionCheck(1, 0, g))
-                ++g->rotation;
+            if (collisionCheck(1, 0))
+                ++rotation;
         }
         else if (code == Keyboard::Z)
         { // counterclockwise
-            if (collisionCheck(-1, 0, g))
-                g->rotation += 3;
+            if (collisionCheck(-1, 0))
+                rotation += 3;
         }
         else if (code == Keyboard::Left || code == Keyboard::A)
         { // move left
-            if (collisionCheck(0, -1, g))
-                g->tetPos = Vector2f(g->tetPos.x - 1, g->tetPos.y);
+            if (collisionCheck(0, -1))
+                tetPos = Vector2f(tetPos.x - 1, tetPos.y);
         }
         else if (code == Keyboard::Right || code == Keyboard::D)
         { // move right
-            if (collisionCheck(0, 1, g))
-                g->tetPos = Vector2f(g->tetPos.x + 1, g->tetPos.y);
+            if (collisionCheck(0, 1))
+                tetPos = Vector2f(tetPos.x + 1, tetPos.y);
         }
         else if (code == Keyboard::Space)
         {
             // hard drop (drop until collision)
-            while (collisionCheck(0, 0, g))
-                g->tetPos = Vector2f(g->tetPos.x, g->tetPos.y + 1);
+            while (collisionCheck(0, 0))
+                tetPos = Vector2f(tetPos.x, tetPos.y + 1);
 
-            placeTet(g);
+            placeTet();
         }
         else if (code == Keyboard::Down || code == Keyboard::S)
             *softDrop = true;
-        else if (code == Keyboard::C && !g->usedHeld)
+        else if (code == Keyboard::C && !usedHeld)
         { // hold piece
-            if (g->heldTet != N)
+            if (heldTet != N)
             {
-                int temp = g->heldTet;
-                g->heldTet = g->currentTet;
-                g->currentTet = temp;
+                int temp = heldTet;
+                heldTet = currentTet;
+                currentTet = temp;
             }
             else
             {
-                g->heldTet = g->currentTet;
-                g->currentTet = g->nextTet;
-                g->nextTet = rand() % N;
+                heldTet = currentTet;
+                currentTet = nextTet;
+                nextTet = rand() % N;
             }
-            g->tetPos = spawnVec;
-            g->rotation = 0;
-            g->usedHeld = true;
+            tetPos = spawnPos;
+            rotation = 0;
+            usedHeld = true;
         }
     }
 
@@ -158,7 +157,6 @@ int main()
     window.setFramerateLimit(60);
 
     // init array
-    vector<vector<int>> tiles;
     for (int y = 0; y < 20; ++y)
     {
         vector<int> temp;
@@ -167,11 +165,12 @@ int main()
         tiles.push_back(temp);
     }
 
-    game g = {rand() % N, rand() % N, N, 0, Vector2f(3, 0), tiles, 0, 0, false};
+    nextTet = rand() % N;
+    currentTet = rand() % N;
 
     bool softDrop = false;
     bool paused = false;
-    int timer = 0;
+    int frameTimer = 0;
 
     while (window.isOpen())
     {
@@ -180,18 +179,18 @@ int main()
         while (window.pollEvent(event))
         {
             if (event.type == Event::KeyPressed)
-                input(event.key.code, &g, &paused, &softDrop);
+                input(event.key.code, &paused, &softDrop);
             else if (event.type == Event::Closed)
                 window.close();
         }
 
         window.clear();
 
-        drawGame(&g, &window, &timer, softDrop, paused);
+        drawGame(&window, &frameTimer, softDrop, paused);
         // drawText("1", 64, Vector2f(0, 100), Color::White, &window);
 
         window.display();
-        ++timer;
+        ++frameTimer;
     }
 
     return 0;

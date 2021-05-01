@@ -1,5 +1,4 @@
-#include <math.h>
-
+#include "libs.hpp"
 #include "font.hpp"
 
 #define TILE_SIZE 22
@@ -10,7 +9,7 @@ const int tetDisplayRot = 1;
 const Color gridColor(255, 255, 255, 80);
 const Vector2f nextTetPos(10, 1);
 const Vector2f heldTetPos(-5, 1);
-const Vector2f spawnVec(3, 0);
+const Vector2f spawnPos(3, 0);
 const Vector2f boardSize(TILE_SIZE * 10, TILE_SIZE * 20);
 const Vector2f boardPos(
     (WIN_X - boardSize.x) / 2,
@@ -21,8 +20,6 @@ const Vector2f fontPos(
 const Vector2f scorePos(
     TILE_SIZE * -5,
     TILE_SIZE * -4);
-
-RectangleShape tile(Vector2f(TILE_SIZE, TILE_SIZE));
 
 enum tetromino { I, O, S, Z, L, J, T, N };
 const array<Color, N> COLORS({
@@ -50,100 +47,85 @@ const array<array<uint16_t, 4>, N> tetrominos({
 const array<int, 20> frames({48, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 2});
 const array<int, 20> softFrames({3, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
-struct game
+RectangleShape tile(Vector2f(TILE_SIZE, TILE_SIZE));
+
+// game vars
+int heldTet = N;
+int rotation = 0;
+Vector2f tetPos = spawnPos;
+int score = 0;
+int level = 0;
+bool usedHeld = false;
+
+int nextTet;
+int currentTet;
+vector<vector<int>> tiles; // 20x10
+
+bool collisionCheck(int rotOffset, int moveOffset)
 {
-    int nextTet;
-    int currentTet;
-    int heldTet;
-    int rotation;
-    Vector2f tetPos;
-
-    vector<vector<int>> tiles; // 20x10
-
-    int score;
-    int level;
-
-    bool usedHeld;
-};
-
-bool collisionCheck(int rotOffset, int moveOffset, game *g)
-{
-    uint16_t current = tetrominos[g->currentTet][(g->rotation + rotOffset) % 4];
+    uint16_t current = tetrominos[currentTet][(rotation + rotOffset) % 4];
     for (int i = 0; i < 16; ++i)
-    {
         if (current >> i & 1 == 1)
         {
-            int x = i % 4 + g->tetPos.x + moveOffset;
-            int y = floor(i / 4) + g->tetPos.y + ((!rotOffset && !moveOffset) ? 1 : 0);
+            int x = i % 4 + tetPos.x + moveOffset;
+            int y = floor(i / 4) + tetPos.y + ((!rotOffset && !moveOffset) ? 1 : 0);
 
-            if (y >= 20 || x < 0 || x >= 10 || g->tiles[y][x] != N)
+            if (y >= 20 || x < 0 || x >= 10 || tiles[y][x] != N)
                 return false;
         }
-    }
 
     return true;
 }
 
-void resetTet(game *g)
-{
-    // reset tetromino
-    g->currentTet = g->nextTet;
-    g->nextTet = rand() % N;
-    g->tetPos = spawnVec;
-    g->rotation = 0;
-    g->usedHeld = false;
-}
-
-void placeTet(game *g)
+void placeTet()
 {
     // add tetrominos to tile
-    uint16_t current = tetrominos[g->currentTet][g->rotation % 4];
+    uint16_t current = tetrominos[currentTet][rotation % 4];
     for (int i = 0; i < 16; ++i)
         if (current >> i & 1 == 1)
-            g->tiles[floor(i / 4) + g->tetPos.y][i % 4 + g->tetPos.x] = g->currentTet;
+            tiles[floor(i / 4) + tetPos.y][i % 4 + tetPos.x] = currentTet;
 
-    resetTet(g);
+    // reset tetromino
+    currentTet = nextTet;
+    nextTet = rand() % N;
+    tetPos = spawnPos;
+    rotation = 0;
+    usedHeld = false;
+
     int rows = 0;
-
     // check for full row
-    bool fullRow = true;
     for (int y = 0; y < 20; ++y)
     {
-        fullRow = true;
-        for (int x = 0; x < 10; ++x)
-        {
-            if (g->tiles[y][x] == N)
-            {
-                fullRow = false;
-                break;
-            }
-        }
+        vector<int> temp;
 
-        if (fullRow)
-        {
-            // erase row and insert empty row at the top
-            g->tiles.erase(g->tiles.begin() + y);
-            vector<int> temp;
-            for (int x = 0; x < 10; ++x)
-                temp.push_back(N);
-            g->tiles.insert(g->tiles.begin(), temp);
-            ++rows;
-        }
+        for (int x = 0; x < 10; ++x)
+            if (tiles[y][x] == N)
+                goto cnt; // apparently this is the only way to break in a nested loop
+
+        // erase row and insert empty row at the top
+        tiles.erase(tiles.begin() + y);
+        for (int x = 0; x < 10; ++x)
+            temp.push_back(N);
+
+        tiles.insert(tiles.begin(), temp);
+        ++rows;
+
+        cnt:;
     }
 
     if (rows == 0)
         return;
     else if (rows == 1)
-        g->score += 40 * (g->level + 1);
+        score += 40 * (level + 1);
     else if (rows == 2)
-        g->score += 100 * (g->level + 1);
+        score += 100 * (level + 1);
     else if (rows == 3)
-        g->score += 300 * (g->level + 1);
+        score += 300 * (level + 1);
     else if (rows == 4)
-        g->score += 1200 * (g->level + 1);
+        score += 1200 * (level + 1);
 }
 
-void drawTet(int xOffset, int yOffset, int tet, int rot, game *g, RenderWindow *win)
+void drawTet(int xOffset, int yOffset, int tet, int rot, RenderWindow *win)
 {
     uint16_t current = tetrominos[tet][rot % 4];
     for (int i = 0; i < 16; ++i)
