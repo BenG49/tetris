@@ -5,12 +5,15 @@
 #define WIN_X 480
 #define WIN_Y 640
 
+const int boardWidth = 10;
+const int boardHeight = 20;
 const int tetDisplayRot = 1;
+
 const Color gridColor(255, 255, 255, 80);
 const Vector2f nextTetPos(10, 1);
 const Vector2f heldTetPos(-5, 1);
-const Vector2f spawnPos(3, 0);
-const Vector2f boardSize(TILE_SIZE * 10, TILE_SIZE * 20);
+const Vector2f spawnPos(3, boardHeight);
+const Vector2f boardSize(TILE_SIZE * boardWidth, TILE_SIZE * boardHeight);
 const Vector2f boardPos(
     (WIN_X - boardSize.x) / 2,
     (WIN_Y - boardSize.y) / 2);
@@ -68,10 +71,14 @@ bool collisionCheck(int rotOffset, int moveOffset)
         if (current >> i & 1 == 1)
         {
             int x = i % 4 + tetPos.x + moveOffset;
-            int y = floor(i / 4) + tetPos.y + ((!rotOffset && !moveOffset) ? 1 : 0);
+            int y = floor(i / 4) + tetPos.y + ((!rotOffset && !moveOffset) ? -1 : 0);
+            int ypos = boardHeight - y - 1;
 
-            if (y >= 20 || x < 0 || x >= 10 || tiles[y][x] != N)
+            if (y == 0 || x < 0 || x >= boardWidth || tiles[y][x] != N)
+            {
+                printf("%d, %d, %d\n", x, y, ypos);
                 return false;
+            }
         }
 
     return true;
@@ -94,17 +101,17 @@ void placeTet()
 
     int rows = 0;
     // check for full row
-    for (int y = 0; y < 20; ++y)
+    for (int y = 0; y < boardHeight; ++y)
     {
         vector<int> temp;
 
-        for (int x = 0; x < 10; ++x)
+        for (int x = 0; x < boardWidth; ++x)
             if (tiles[y][x] == N)
                 goto cnt; // apparently this is the only way to break in a nested loop
 
         // erase row and insert empty row at the top
         tiles.erase(tiles.begin() + y);
-        for (int x = 0; x < 10; ++x)
+        for (int x = 0; x < boardWidth; ++x)
             temp.push_back(N);
 
         tiles.insert(tiles.begin(), temp);
@@ -134,9 +141,10 @@ void drawTet(int xOffset, int yOffset, int tet, int rot, RenderWindow *win)
         {
             int x = i % 4 + xOffset;
             int y = floor(i / 4) + yOffset;
+            int ypos = boardHeight - y - 1;
 
             tile.setFillColor(COLORS[tet]);
-            tile.setPosition(boardPos + Vector2f(TILE_SIZE * x, TILE_SIZE * y));
+            tile.setPosition(boardPos + Vector2f(TILE_SIZE * x, TILE_SIZE * ypos));
             win->draw(tile);
         }
     }

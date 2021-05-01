@@ -16,7 +16,7 @@ void updateGame(int *timer, bool softDrop)
     if (*timer >= ((softDrop) ? softFrames[level] : frames[level]))
     {
         if (collisionCheck(0, 0))
-            tetPos = Vector2f(tetPos.x, tetPos.y + 1);
+            tetPos = Vector2f(tetPos.x, tetPos.y - 1);
         else
             placeTet();
 
@@ -41,16 +41,16 @@ void drawGame(RenderWindow *win, int *frameTimer, bool softDrop, bool paused)
     // draw grid
     if (useGrid)
     {
-        RectangleShape line(Vector2f(1, TILE_SIZE * 20));
+        RectangleShape line(Vector2f(1, TILE_SIZE * boardHeight));
         line.setFillColor(gridColor);
 
-        for (int x = 1; x < 10; ++x)
+        for (int x = 1; x < boardWidth; ++x)
         {
             line.setPosition(Vector2f(boardPos.x + x * TILE_SIZE, boardPos.y));
             win->draw(line);
         }
 
-        line.setSize(Vector2f(TILE_SIZE * 10, 1));
+        line.setSize(Vector2f(TILE_SIZE * boardWidth, 1));
         for (int y = 1; y < 20; ++y)
         {
             line.setPosition(Vector2f(boardPos.x, boardPos.y + y * TILE_SIZE));
@@ -66,12 +66,14 @@ void drawGame(RenderWindow *win, int *frameTimer, bool softDrop, bool paused)
     else
     {
         // draw tiles
-        for (int y = 0; y < tiles.size(); ++y)
-            for (int x = 0; x < tiles[y].size(); ++x)
+        for (int y = 0; y < boardHeight; ++y)
+            for (int x = 0; x < boardWidth; ++x)
                 if (tiles[y][x] != N)
                 {
+                    int ypos = boardHeight - y - 1;
+
                     tile.setFillColor(COLORS[tiles[y][x]]);
-                    tile.setPosition(boardPos + Vector2f(TILE_SIZE * x, TILE_SIZE * y));
+                    tile.setPosition(boardPos + Vector2f(TILE_SIZE * x, TILE_SIZE * ypos));
                     win->draw(tile);
                 }
 
@@ -115,7 +117,7 @@ void input(int code, bool *paused, bool *softDrop)
         {
             // hard drop (drop until collision)
             while (collisionCheck(0, 0))
-                tetPos = Vector2f(tetPos.x, tetPos.y + 1);
+                tetPos = Vector2f(tetPos.x, tetPos.y - 1);
 
             placeTet();
         }
@@ -157,13 +159,16 @@ int main()
     window.setFramerateLimit(60);
 
     // init array
-    for (int y = 0; y < 20; ++y)
+    for (int y = 0; y < boardHeight; ++y)
     {
         vector<int> temp;
-        for (int x = 0; x < 10; ++x)
+        for (int x = 0; x < boardWidth; ++x)
             temp.push_back(N);
         tiles.push_back(temp);
     }
+
+    for (int i = 0; i < N; ++i)
+        tiles[0][i] = i;
 
     nextTet = rand() % N;
     currentTet = rand() % N;
