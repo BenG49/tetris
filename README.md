@@ -1,5 +1,7 @@
 # tetris
 
+![tetris](images/tetris.png "tetris")
+
 ## Run
 1. Install SFML and C++
 2. Run `g++ -c main.cpp`
