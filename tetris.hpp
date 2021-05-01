@@ -1,28 +1,37 @@
 #include "libs.hpp"
 #include "font.hpp"
 
-#define TILE_SIZE 22
-#define WIN_X 480
-#define WIN_Y 640
+constexpr float centerFont(int len, int fontSize, int winWidth)
+{
+    return (winWidth - fontSize * len) / 2;
+}
 
-const int boardWidth = 10;
-const int boardHeight = 20;
-const int tetDisplayRot = 1;
+const Vector2f winSize(480, 640);
+const Vector2f boardDim(10, 20);
+
+const int displayRot = 1;
+const int tileSize = 22;
+const int fontSize = 32;
 
 const Color gridColor(255, 255, 255, 80);
-const Vector2f nextTetPos(10, 1);
-const Vector2f heldTetPos(-5, 1);
-const Vector2f spawnPos(3, boardHeight);
-const Vector2f boardSize(TILE_SIZE * boardWidth, TILE_SIZE * boardHeight);
-const Vector2f boardPos(
-    (WIN_X - boardSize.x) / 2,
-    (WIN_Y - boardSize.y) / 2);
-const Vector2f fontPos(
-    TILE_SIZE * 0.7,
-    TILE_SIZE * 9);
-const Vector2f scorePos(
-    TILE_SIZE * -5,
-    TILE_SIZE * -4);
+const Vector2f boardSize = (float)tileSize * boardDim;
+const Vector2f boardPos = (winSize - boardSize) / 2.0f;
+
+// positions
+const Vector2f pausePos(centerFont(6, fontSize, winSize.x),  // len(PAUSED) = 6
+                        centerFont(1, fontSize, winSize.y));
+const Vector2f linesPos(centerFont(10, fontSize, winSize.x), // len(LINES: 000) = 10
+                        fontSize / 2);
+const Vector2f scorePos(centerFont(13, fontSize, winSize.x), // len(SCORE: 000000) = 13
+                        winSize.y - fontSize * 2);
+
+const float lostX = centerFont(8, fontSize, winSize.x);     // x pos for "YOU LOST"
+const float pressX = centerFont(14, fontSize, winSize.x);   // x pos for "PRESS ENTER TO"
+const int lostFontMul = -5; // how many fontSizes to offset from center of screen for top of lost text
+
+const Vector2f nextTetPos(11, boardDim.y - 3);
+const Vector2f heldTetPos(-5, boardDim.y - 3);
+const Vector2f spawnPos(3, boardDim.y - 4);
 
 enum tetromino { I, O, S, Z, L, J, T, N };
 const array<Color, N> COLORS({
@@ -37,32 +46,31 @@ const array<Color, N> COLORS({
 
 // Stores each tetromino in a 4x4 array of pixels, gap on right and bottom if 3x3
 const array<array<uint16_t, 4>, N> tetrominos({
-    array<uint16_t, 4>({0xf0, 0x4444, 0xf00, 0x2222}),   // I
-    array<uint16_t, 4>({0x660, 0x660, 0x660, 0x660}),    // O
-    array<uint16_t, 4>({0x630, 0x2640, 0x63, 0x4c80}),   // Z
-    array<uint16_t, 4>({0x6c0, 0x4620, 0x6c, 0x8c40}),   // S
-    array<uint16_t, 4>({0x2e00, 0x4460, 0xe80, 0xc440}), // L
-    array<uint16_t, 4>({0x8e00, 0x6440, 0xe20, 0x44c0}), // J
-    array<uint16_t, 4>({0x4e00, 0x4640, 0xe40, 0x4c40})  // T
+    array<uint16_t, 4>({0x0f00, 0x4444, 0x00f0, 0x2222}), // I
+    array<uint16_t, 4>({0x0660, 0x0660, 0x0660, 0x0660}), // O
+    array<uint16_t, 4>({0x3600, 0x4620, 0x0360, 0x2310}), // Z
+    array<uint16_t, 4>({0x6300, 0x2640, 0x0630, 0x1320}), // S
+    array<uint16_t, 4>({0x4700, 0x2260, 0x0710, 0x3220}), // L
+    array<uint16_t, 4>({0x1700, 0x6220, 0x0740, 0x2230}), // J
+    array<uint16_t, 4>({0x2700, 0x2620, 0x0720, 0x2320})  // T
 });
 
 // https://gamedev.stackexchange.com/questions/159835/understanding-tetris-speed-curve
 const array<int, 20> frames({48, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 2});
 const array<int, 20> softFrames({3, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
-RectangleShape tile(Vector2f(TILE_SIZE, TILE_SIZE));
+RectangleShape tile(Vector2f(tileSize, tileSize));
 
 // game vars
-int heldTet = N;
-int rotation = 0;
-Vector2f tetPos = spawnPos;
-int score = 0;
-int level = 0;
-bool usedHeld = false;
+int frameTimer, rotation, heldTet, score, level, lines;
+bool usedHeld, softDrop, paused, lost;
 
+Vector2f tetPos = spawnPos;
+
+RenderWindow win(VideoMode(480, 640), "win", Style::Titlebar);
+vector<vector<int>> tiles; // 20x10
 int nextTet;
 int currentTet;
-vector<vector<int>> tiles; // 20x10
 
 bool collisionCheck(int rotOffset, int moveOffset)
 {
@@ -72,13 +80,9 @@ bool collisionCheck(int rotOffset, int moveOffset)
         {
             int x = i % 4 + tetPos.x + moveOffset;
             int y = floor(i / 4) + tetPos.y + ((!rotOffset && !moveOffset) ? -1 : 0);
-            int ypos = boardHeight - y - 1;
 
-            if (y == 0 || x < 0 || x >= boardWidth || tiles[y][x] != N)
-            {
-                printf("%d, %d, %d\n", x, y, ypos);
+            if (y == -1 || x < 0 || x >= boardDim.x || (y < 20 && tiles[y][x] != N))
                 return false;
-            }
         }
 
     return true;
@@ -86,7 +90,7 @@ bool collisionCheck(int rotOffset, int moveOffset)
 
 void placeTet()
 {
-    // add tetrominos to tile
+    // add tetrominos to tile vector
     uint16_t current = tetrominos[currentTet][rotation % 4];
     for (int i = 0; i < 16; ++i)
         if (current >> i & 1 == 1)
@@ -99,25 +103,36 @@ void placeTet()
     rotation = 0;
     usedHeld = false;
 
+    // lose check for when tetromino spawns with y < 20
+    // if tetromino spawns inside of tile, lose
+    current = tetrominos[currentTet][rotation % 4];
+    for (int i = 0; i < 16; ++i)
+        if (current >> i & 1 == 1 && tiles[floor(i / 4) + tetPos.y][i % 4 + tetPos.x] != N)
+        {
+            lost = true;
+            return;
+        }
+
     int rows = 0;
     // check for full row
-    for (int y = 0; y < boardHeight; ++y)
+    for (int y = 0; y < boardDim.y; ++y)
     {
         vector<int> temp;
 
-        for (int x = 0; x < boardWidth; ++x)
+        for (int x = 0; x < boardDim.x; ++x)
             if (tiles[y][x] == N)
                 goto cnt; // apparently this is the only way to break in a nested loop
 
         // erase row and insert empty row at the top
         tiles.erase(tiles.begin() + y);
-        for (int x = 0; x < boardWidth; ++x)
+        for (int x = 0; x < boardDim.x; ++x)
             temp.push_back(N);
 
-        tiles.insert(tiles.begin(), temp);
+        tiles.push_back(temp);
         ++rows;
+        ++lines;
 
-        cnt:;
+    cnt:;
     }
 
     if (rows == 0)
@@ -132,7 +147,7 @@ void placeTet()
         score += 1200 * (level + 1);
 }
 
-void drawTet(int xOffset, int yOffset, int tet, int rot, RenderWindow *win)
+void drawTet(int xOffset, int yOffset, int tet, int rot, bool topCheck)
 {
     uint16_t current = tetrominos[tet][rot % 4];
     for (int i = 0; i < 16; ++i)
@@ -141,11 +156,14 @@ void drawTet(int xOffset, int yOffset, int tet, int rot, RenderWindow *win)
         {
             int x = i % 4 + xOffset;
             int y = floor(i / 4) + yOffset;
-            int ypos = boardHeight - y - 1;
+            int ypos = boardDim.y - y - 1;
 
-            tile.setFillColor(COLORS[tet]);
-            tile.setPosition(boardPos + Vector2f(TILE_SIZE * x, TILE_SIZE * ypos));
-            win->draw(tile);
+            if (!topCheck || y < 20)
+            {
+                tile.setFillColor(COLORS[tet]);
+                tile.setPosition(boardPos + Vector2f(tileSize * x, tileSize * ypos));
+                win.draw(tile);
+            }
         }
     }
 }
