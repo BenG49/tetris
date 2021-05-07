@@ -104,7 +104,7 @@ unsigned char letters[96][8] = {
     {0xfe, 0xc6, 0xc6, 0x6c, 0x38, 0x10, 0x00, 0x00},
 };
 
-void drawText(string text, int sqsize, Vector2f pos, Color color, RenderWindow *win)
+void drawText(string text, int sqsize, Vector2f pos, Color color, RenderWindow& win)
 {
     float pix = sqsize/8.0f;
     RectangleShape pixel(Vector2f(pix, pix));
@@ -125,7 +125,7 @@ void drawText(string text, int sqsize, Vector2f pos, Color color, RenderWindow *
                 pixel.setPosition(pixel.getPosition().x - pix, pixel.getPosition().y);
                 uint8_t current = letters[text[c]-32][row];
                 if (current >> col & 1 == 1)
-                    win->draw(pixel);
+                    win.draw(pixel);
             }
 
             // lower pixel 1 row

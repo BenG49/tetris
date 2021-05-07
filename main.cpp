@@ -10,36 +10,36 @@
 
 const bool useGrid = false;
 
-void pad0(string *s, int len)
+void pad0(string& s, int len)
 {
-    while (s->size() < len)
-        s->insert(s->begin(), '0');
+    while (s.size() < len)
+        s.insert(s.begin(), '0');
 }
 
 void updateGame()
 {
     if (lost)
     {
-        drawText("YOU LOST", fontSize, Vector2f(lostX, pausePos.y + fontSize * lostFontMul), Color::White, &win);
+        drawText("YOU LOST", fontSize, Vector2f(lostX, pausePos.y + fontSize * lostFontMul), Color::White, win);
 
         // draw score
         string s = to_string(score);
-        pad0(&s, 6);
-        drawText("SCORE: "+s, fontSize, Vector2f(scorePos.x, pausePos.y + fontSize * (lostFontMul + 2)), Color::White, &win);
+        pad0(s, 6);
+        drawText("SCORE: "+s, fontSize, Vector2f(scorePos.x, pausePos.y + fontSize * (lostFontMul + 2)), Color::White, win);
 
         // draw lines
         s = to_string(lines);
-        pad0(&s, 3);
-        drawText("LINES: "+s, fontSize, Vector2f(linesPos.x, pausePos.y + fontSize * (lostFontMul + 4)), Color::White, &win);
+        pad0(s, 3);
+        drawText("LINES: "+s, fontSize, Vector2f(linesPos.x, pausePos.y + fontSize * (lostFontMul + 4)), Color::White, win);
 
         // draw level
         s = to_string(level);
-        pad0(&s, 2);
-        drawText("LEVEL: "+s, fontSize, Vector2f(levelPos.x, pausePos.y + fontSize * (lostFontMul + 6)), Color::White, &win);
+        pad0(s, 2);
+        drawText("LEVEL: "+s, fontSize, Vector2f(levelPos.x, pausePos.y + fontSize * (lostFontMul + 6)), Color::White, win);
 
         // draw prompt
-        drawText("PRESS ENTER TO", fontSize, Vector2f(pressX, pausePos.y + fontSize * (lostFontMul + 9)), Color::White, &win);
-        drawText("PLAY AGAIN", fontSize, Vector2f(linesPos.x, pausePos.y + fontSize * (lostFontMul + 11)), Color::White, &win);
+        drawText("PRESS ENTER TO", fontSize, Vector2f(pressX, pausePos.y + fontSize * (lostFontMul + 9)), Color::White, win);
+        drawText("PLAY AGAIN", fontSize, Vector2f(linesPos.x, pausePos.y + fontSize * (lostFontMul + 11)), Color::White, win);
 
         return;
     }
@@ -86,21 +86,21 @@ void updateGame()
 
     // draw score
     string s = to_string(score);
-    pad0(&s, 6);
-    drawText("SCORE: "+s, fontSize, scorePos, Color::White, &win);
+    pad0(s, 6);
+    drawText("SCORE: "+s, fontSize, scorePos, Color::White, win);
 
     // draw lines
     s = to_string(lines);
-    pad0(&s, 3);
-    drawText("LINES: "+s, fontSize, linesPos, Color::White, &win);
+    pad0(s, 3);
+    drawText("LINES: "+s, fontSize, linesPos, Color::White, win);
 
     // draw level
     s = to_string(level);
-    pad0(&s, 2);
-    drawText("LEVEL: "+s, fontSize, levelPos, Color::White, &win);
+    pad0(s, 2);
+    drawText("LEVEL: "+s, fontSize, levelPos, Color::White, win);
 
     if (paused)
-        drawText("PAUSED", fontSize, pausePos, Color::White, &win);
+        drawText("PAUSED", fontSize, pausePos, Color::White, win);
     else
     {
         // draw tiles
